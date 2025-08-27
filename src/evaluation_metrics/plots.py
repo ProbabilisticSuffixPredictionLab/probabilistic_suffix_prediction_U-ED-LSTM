@@ -2,7 +2,9 @@ import numpy as np
 import collections
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import io
+from collections import defaultdict
 
 def plot_pits(data, x_label='', caption='', pgf=False):
     if pgf:
@@ -255,6 +257,389 @@ def plot_res(res, c, columns, caption='', pgf=False):
     #plt.margins(0,0.3)
     plt.subplots_adjust(left=0, right=1, top=0.85, bottom=0, hspace=0.2, wspace = 0.05)
 
+    if pgf:
+        pgf_stream = io.BytesIO()
+        fig.savefig(pgf_stream, format='pgf', bbox_inches='tight', pad_inches=0.1)
+        pgf_data = pgf_stream.getvalue()
+        pgf_stream.close()
+        return pgf_data
+    else:
+        plt.show()
+
+
+def plot_intervals(data_list, caption='', pgf=False):
+    mpl.rcdefaults()
+    
+    if pgf:
+        plt.rcParams.update({
+            "pgf.texsystem": "pdflatex",  # Use pdflatex or lualatex
+            "font.family": "serif",       # Match LaTeX font
+            "text.usetex": True,          # Enable LaTeX rendering
+            "pgf.rcfonts": False,         # Disable rc settings override
+        })
+    
+    plt.rcParams.update({
+        'font.size': 8,          # General font size
+        'axes.titlesize': 15,     # Title font size
+        'axes.labelsize': 26,     # Axis label size
+        'xtick.labelsize': 20,    # X-axis tick labels
+        'ytick.labelsize': 20,    # Y-axis tick labels
+        'xtick.major.width' : 0.2,
+        'ytick.major.width' : 0.2,
+        'legend.fontsize': 20,    # Legend font size
+        'lines.linewidth': 0.7,  # Thinner lines
+        'lines.markersize': 3    # Smaller markers
+    })
+
+    fig, ax1 = plt.subplots()
+    if caption:
+        plt.title(r'\textbf{' + caption + '}', fontsize=25)
+    
+    ax1.set_ylim(0,1.05)
+
+    for k, d in data_list.items():
+        # aggregate counts per prefix_len
+        counts = defaultdict(lambda: {'true': 0, 'total': 0})
+        
+        for (case_name, prefix_len, _), info in d.items():
+            # set label once (assumes all entries in d have same case_name)
+            val_bool = info['prob'][0]
+            counts[prefix_len]['total'] += 1
+            if val_bool:
+                counts[prefix_len]['true']  += 1
+        
+        # sort by prefix_len
+        xs = sorted(counts)
+        ys = [counts[x]['true'] / counts[x]['total'] for x in xs]
+        
+        # plot
+        p, = ax1.plot(xs, ys, marker='o', label=k[1])
+        ax1.axhline(y=float(k[1].split('_')[-1])/100, color=p.get_color(), linestyle='--')
+
+    # ax1.legend()
+    ax2 = ax1.twinx()
+
+    prefix_i, prefix_count = zip(*sorted([(k, v['total']) for k, v in counts.items()]))
+    ax2.plot(prefix_i, 
+        prefix_count, 
+        linestyle='--', color='gray', label='\# instances' if pgf else '# instances'
+    )
+    ax2.fill_between(prefix_i, prefix_count, color='gray', alpha=0.3)    
+
+    #ax1.set_xlabel('prefix_len')
+    ax1.set_ylabel('Prediction Interval')
+    ax2.set_ylabel('prefix count')
+    #ax1.set_xlabel('Share of True (mean)')
+    ax1.set_ylim(bottom=0)
+    ax2.set_ylim(bottom=0)
+    ax1.set_xlim(left=0)
+    ax2.set_xlim(left=0)
+
+    plt.xlabel('Prefix length')
+    # plt.legend()
+
+    plt.subplots_adjust(left=0, right=1, top=0.85, bottom=0, hspace=0.2, wspace = 0.05)
+
+    if pgf:
+        pgf_stream = io.BytesIO()
+        fig.savefig(pgf_stream, format='pgf', bbox_inches='tight', pad_inches=0.1)
+        pgf_data = pgf_stream.getvalue()
+        pgf_stream.close()
+        return pgf_data
+    else:
+        plt.show()
+
+
+def plot_2_intervals(data_list_1, data_list_2, caption='', pgf=False):
+    mpl.rcdefaults()
+    if pgf:
+        plt.rcParams.update({
+            "pgf.texsystem": "pdflatex",  # Use pdflatex or lualatex
+            "font.family": "serif",       # Match LaTeX font
+            "text.usetex": True,          # Enable LaTeX rendering
+            "pgf.rcfonts": False,         # Disable rc settings override
+        })
+
+    plt.rcParams.update({
+        'font.size': 6,          # General font size
+        'axes.titlesize': 7,     # Title font size
+        'axes.labelsize': 9,     # Axis label size
+        'xtick.labelsize': 7,    # X-axis tick labels
+        'ytick.labelsize': 7,    # Y-axis tick labels
+        'xtick.major.width' : 0.2,
+        'ytick.major.width' : 0.2,
+        'legend.fontsize': 7,    # Legend font size
+        'lines.linewidth': 0.7,  # Thinner lines
+        'lines.markersize': 3    # Smaller markers
+    })
+
+    fig, axes = plt.subplots(1, 2, figsize=(4, 2), dpi=300,
+                            gridspec_kw={'width_ratios' : [1, 1], 'height_ratios' : [1]},
+                )
+
+    ax1 = axes[0]
+    ax1.set_title('Suffix length confidence intervals',  fontsize=8.5)
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax1.set_ylim(0,1.05)
+
+    for k, d in data_list_1.items():
+        # aggregate counts per prefix_len
+        counts = defaultdict(lambda: {'true': 0, 'total': 0})
+        
+        for (case_name, prefix_len, _), info in d.items():
+            # set label once (assumes all entries in d have same case_name)
+            val_bool = info['prob'][0]
+            counts[prefix_len]['total'] += 1
+            if val_bool:
+                counts[prefix_len]['true']  += 1
+        
+        # sort by prefix_len
+        xs = sorted(counts)
+        ys = [counts[x]['true'] / counts[x]['total'] for x in xs]
+        
+        # plot
+        p, = ax1.plot(xs, ys, marker='', label=k[1])
+        ax1.axhline(y=float(k[1].split('_')[-1])/100, color=p.get_color(), linestyle='--')
+
+    #ax1.legend()
+    ax2 = ax1.twinx()
+    for spine in ax2.spines.values():
+        spine.set_linewidth(0.0)
+    for spine in ax1.spines.values():
+        spine.set_linewidth(0.2)
+
+    prefix_i, prefix_count = zip(*sorted([(k, v['total']) for k, v in counts.items()]))
+    ax2.plot(prefix_i, 
+        prefix_count, 
+        linestyle='--', color='gray', label='\# instances' if pgf else '# instances'
+    )
+    ax2.fill_between(prefix_i, prefix_count, color='gray', alpha=0.3)    
+
+    #ax1.set_xlabel('prefix_len')
+    ax1.set_ylabel('prediction interval', labelpad=0)
+    ax1.set_xlabel(r'\underline{\smash{\textbf{' + caption + '}}}', ha='center', va='center', fontsize=12, labelpad=10)
+    ax1.set_ylim(bottom=0)
+    ax2.tick_params(left=False, labelleft=False)
+
+    ax2.set_ylim(bottom=0)
+    ax1.set_xlim(left=0)
+    ax2.set_xlim(left=0)
+    ax2.spines['right'].set_visible(False)
+    ax2.tick_params(right=False, labelright=False)
+
+    pos = ax1.get_position()
+    ax1.set_position([pos.x0 + 0.01, pos.y0 + 0.01, pos.width * 0.98, pos.height * 0.98])
+
+
+    ax3 = axes[1]
+    ax3.set_title('Remaining time confidence intervals', fontsize=8.5)
+    ax3.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+    for k, d in data_list_2.items():
+        # aggregate counts per prefix_len
+        counts = defaultdict(lambda: {'true': 0, 'total': 0})
+        
+        for (case_name, prefix_len, _), info in d.items():
+            # set label once (assumes all entries in d have same case_name)
+            val_bool = info['prob'][0]
+            counts[prefix_len]['total'] += 1
+            if val_bool:
+                counts[prefix_len]['true']  += 1
+        
+        # sort by prefix_len
+        xs = sorted(counts)
+        ys = [counts[x]['true'] / counts[x]['total'] for x in xs]
+        
+        # plot
+        p, = ax3.plot(xs, ys, marker='', label=k[1])
+        ax3.axhline(y=float(k[1].split('_')[-1])/100, color=p.get_color(), linestyle='--')
+
+    #ax1.legend()
+    ax4 = ax3.twinx()
+    for spine in ax4.spines.values():
+        spine.set_linewidth(0.0)
+    for spine in ax3.spines.values():
+        spine.set_linewidth(0.2)
+
+    prefix_i, prefix_count = zip(*sorted([(k, v['total']) for k, v in counts.items()]))
+    ax4.plot(prefix_i, 
+        prefix_count, 
+        linestyle='--', color='gray', label='\# instances' if pgf else '# instances'
+    )
+    ax4.fill_between(prefix_i, prefix_count, color='gray', alpha=0.3)    
+
+    #ax1.set_xlabel('prefix_len')
+    ax3.set_xlabel('prefix length', labelpad=0)
+    ax4.set_ylabel('prefix count', labelpad=0)
+    ax3.set_ylim(bottom=0)
+    ax3.tick_params(left=False, labelleft=False)
+
+    ax4.set_ylim(bottom=0)
+    ax3.set_xlim(left=0)
+    ax4.set_xlim(left=0)
+    ax4.spines['right'].set_visible(False)
+
+    pos = ax3.get_position()
+    ax3.set_position([pos.x0 + 0.01, pos.y0 + 0.01, pos.width * 0.98, pos.height * 0.98])
+
+    plt.subplots_adjust(left=0, right=1, top=0.85, bottom=0, hspace=0.02, wspace = 0.05)
+
+    if pgf:
+        pgf_stream = io.BytesIO()
+        fig.savefig(pgf_stream, format='pgf', bbox_inches='tight', pad_inches=0.1)
+        pgf_data = pgf_stream.getvalue()
+        pgf_stream.close()
+        return pgf_data
+    else:
+        plt.show()
+
+
+def plot_2_4_intervals(data_list_1, data_list_2, camargo, weytjens, caption='', pgf=False):
+    '''
+    Plots two sets of confidence intervals for suffix length and remaining time.
+    For each of the two plots, two models are plotted
+    '''
+    mpl.rcdefaults()
+    if pgf:
+        plt.rcParams.update({
+            "pgf.texsystem": "pdflatex", # Use pdflatex or lualatex
+            "font.family": "serif", # Match LaTeX font
+            "text.usetex": True, # Enable LaTeX rendering
+            "pgf.rcfonts": False, # Disable rc settings override
+        })
+    plt.rcParams.update({
+        'font.size': 6, # General font size
+        'axes.titlesize': 7, # Title font size
+        'axes.labelsize': 9, # Axis label size
+        'xtick.labelsize': 7, # X-axis tick labels
+        'ytick.labelsize': 7, # Y-axis tick labels
+        'xtick.major.width' : 0.2,
+        'ytick.major.width' : 0.2,
+        'legend.fontsize': 7, # Legend font size
+        'lines.linewidth': 0.7, # Thinner lines
+        'lines.markersize': 3 # Smaller markers
+    })
+    fig, axes = plt.subplots(1, 2, figsize=(5, 2), dpi=300,
+                             gridspec_kw={'width_ratios' : [1, 1], 'height_ratios' : [1]},
+    )
+    # suffix length confidence intervals
+    # 1st plot
+    ax1 = axes[0]
+    ax1.set_title('\\textbf{suffix length}', fontsize=8.5)
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
+    ax1.set_ylim(0,1.05)
+    for (k, d), (ck, cd) in zip(data_list_1.items(), camargo.items()):
+        # aggregate counts per prefix_len
+        counts = defaultdict(lambda: {'true': 0, 'total': 0})
+        for (case_name, prefix_len, _), info in d.items():
+            # set label once (assumes all entries in d have same case_name)
+            val_bool = info['prob'][0]
+            counts[prefix_len]['total'] += 1
+            if val_bool:
+                counts[prefix_len]['true'] += 1
+        # sort by prefix_len
+        xs = sorted(counts)
+        ys = [counts[x]['true'] / counts[x]['total'] for x in xs]
+        p, = ax1.plot(xs, ys, marker='', label=k[1], linestyle='-')
+
+        counts = defaultdict(lambda: {'true': 0, 'total': 0})
+        for (case_name, prefix_len, _), info in cd.items():
+            # set label once (assumes all entries in d have same case_name)
+            val_bool = info['prob'][0]
+            counts[prefix_len]['total'] += 1
+            if val_bool:
+                counts[prefix_len]['true'] += 1
+        # sort by prefix_len
+        xs = sorted(counts)
+        ys = [counts[x]['true'] / counts[x]['total'] for x in xs]
+        p, = ax1.plot(xs, ys, marker='', label=ck[1], color=p.get_color(), linestyle='--')
+        # plot
+        ax1.axhline(y=float(k[1].split('_')[-1])/100, color=p.get_color(), linestyle='-.')
+    # background of 1st plot
+    ax2 = ax1.twinx()
+    for spine in ax2.spines.values():
+        spine.set_linewidth(0.0)
+    for spine in ax1.spines.values():
+        spine.set_linewidth(0.2)
+    prefix_i, prefix_count = zip(*sorted([(k, v['total']) for k, v in counts.items()]))
+    ax2.plot(prefix_i,
+             prefix_count,
+             linestyle='--', color='gray', label='\# instances' if pgf else '# instances'
+    )
+    ax2.fill_between(prefix_i, prefix_count, color='gray', alpha=0.3)
+    #ax1.set_xlabel('prefix_len')
+    ax1.set_ylabel('empirical coverage', labelpad=0)
+    ax1.set_xlabel(r'\underline{\smash{\textbf{' + caption + '}}}', ha='center', va='center', fontsize=12, labelpad=10)
+    ax1.set_ylim(bottom=0)
+    ax2.tick_params(left=False, labelleft=False)
+    ax2.set_ylim(bottom=0)
+    ax1.set_xlim(left=0)
+    ax2.set_xlim(left=0)
+    ax2.spines['right'].set_visible(False)
+    ax2.tick_params(right=False, labelright=False)
+    pos = ax1.get_position()
+    ax1.set_position([pos.x0 + 0.01, pos.y0 + 0.01, pos.width * 0.98, pos.height * 0.98])
+    # remaining time confidence intervals
+    # 2nd plot
+    ax3 = axes[1]
+    ax3.set_title('\\textbf{remaining time}', fontsize=8.5)
+    ax3.xaxis.set_major_locator(MaxNLocator(integer=True))
+    for i, ((k, d), (wk, wd)) in enumerate(zip(data_list_2.items(), weytjens.items())):
+        # aggregate counts per prefix_len
+        counts = defaultdict(lambda: {'true': 0, 'total': 0})
+        for (case_name, prefix_len, _), info in d.items():
+            # set label once (assumes all entries in d have same case_name)
+            val_bool = info['prob'][0]
+            counts[prefix_len]['total'] += 1
+            if val_bool:
+                counts[prefix_len]['true'] += 1
+        # sort by prefix_len
+        xs = sorted(counts)
+        ys = [counts[x]['true'] / counts[x]['total'] for x in xs]
+        p, = ax3.plot(xs, ys, marker='', label='prob. suffix pred.' if not i else None, linestyle='-')
+
+        counts = defaultdict(lambda: {'true': 0, 'total': 0})
+        for (case_name, prefix_len, _), info in wd.items():
+            # set label once (assumes all entries in d have same case_name)
+            val_bool = info['prob'][0]
+            counts[prefix_len]['total'] += 1
+            if val_bool:
+                counts[prefix_len]['true'] += 1
+        # sort by prefix_len
+        xs = sorted(counts)
+        ys = [counts[x]['true'] / counts[x]['total'] for x in xs]
+        p, = ax3.plot(xs, ys, marker='', label='comparison' if not i else None, color=p.get_color(), linestyle='--')
+        # plot
+        ax3.axhline(y=float(k[1].split('_')[-1])/100, label='optimal' if not i else None, color=p.get_color(), linestyle='-.')
+    # background of 2nd plot
+    ax4 = ax3.twinx()
+    for spine in ax4.spines.values():
+        spine.set_linewidth(0.0)
+    for spine in ax3.spines.values():
+        spine.set_linewidth(0.2)
+    prefix_i, prefix_count = zip(*sorted([(k, v['total']) for k, v in counts.items()]))
+    ax4.plot(prefix_i,
+             prefix_count,
+             linestyle='--', color='gray', label='\# instances' if pgf else '# instances'
+    )
+    ax4.fill_between(prefix_i, prefix_count, color='gray', alpha=0.3)
+    #ax1.set_xlabel('prefix_len')
+    ax3.set_xlabel('prefix length', labelpad=0)
+    ax4.set_ylabel('prefix count', labelpad=0)
+    ax3.set_ylim(bottom=0)
+    ax3.tick_params(left=False, labelleft=False)
+    ax4.set_ylim(bottom=0)
+    ax3.set_xlim(left=0)
+    ax4.set_xlim(left=0)
+    ax4.spines['right'].set_visible(False)
+    pos = ax3.get_position()
+    ax3.set_position([pos.x0 + 0.01, pos.y0 + 0.01, pos.width * 0.98, pos.height * 0.98])
+    # Add legend after all plotting on ax3 and ax4
+    leg = ax3.legend(loc='lower right', framealpha=1)
+    for handle in leg.legend_handles:
+        handle.set_color('black')
+    leg.set_zorder(1000)
+    plt.subplots_adjust(left=0, right=1, top=0.85, bottom=0, hspace=0.02, wspace = 0.05)
     if pgf:
         pgf_stream = io.BytesIO()
         fig.savefig(pgf_stream, format='pgf', bbox_inches='tight', pad_inches=0.1)

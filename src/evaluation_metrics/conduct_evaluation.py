@@ -1,20 +1,15 @@
-"""
-SMALL DESCRIPTION
-"""
-
 import os
 import pickle
 import concurrent.futures
 import collections
-import numpy as np
 
 def evaluate_metric(
     metric : object,
     prefix : list,
     suffix : list,
     mean_prediction : list,
-    predicted_suffix : list[list]
-):
+    predicted_suffix : list[list]):
+    
     return metric.evaluate(prefix, suffix, mean_prediction, predicted_suffix)
 
 def evaluate_single(batch_folder : str, filename : str, metrics : dict):
@@ -42,8 +37,8 @@ def evaluate_single(batch_folder : str, filename : str, metrics : dict):
 
 def evaluate_sequentially(
         batch_folder : str,
-        metrics : dict[str, object]
-):
+        metrics : dict[str, object]):
+    
     pickle_files = sorted(f for f in os.listdir(batch_folder) if f.endswith('.pkl'))
     prefix_count, suffix_count = collections.defaultdict(lambda : 0), collections.defaultdict(lambda : 0)
     results = {metric_name : {} for metric_name in metrics.keys()}
@@ -60,8 +55,8 @@ def evaluate_sequentially(
 def batch_evaluate(
         batch_folder : str,
         metrics : dict[str, object],
-        num_workers : int = 4,
-):
+        num_workers : int = 4):
+    
     pickle_files = sorted(f for f in os.listdir(batch_folder) if f.endswith('.pkl'))
     results = {metric_name : {} for metric_name in metrics.keys()}
     prefix_count, suffix_count = collections.defaultdict(lambda : 0), collections.defaultdict(lambda : 0)

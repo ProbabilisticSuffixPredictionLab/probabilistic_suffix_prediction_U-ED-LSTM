@@ -3,6 +3,7 @@ import CRPS.CRPS as pscore
 from Levenshtein import distance
 from pyxdameraulevenshtein import damerau_levenshtein_distance, normalized_damerau_levenshtein_distance
 import numpy as np
+from collections import Counter
 
 class EvaluationMetric(ABC):
     def __init__(self, attribute_name, outlier_removal : float = 0):
@@ -635,3 +636,136 @@ class PercentileNormalizedDamerauLevenshteinDistanceMeanVar(ClosestNormalizedDam
         bottom_proba_distance = np.percentile(proba_distances, 100*self.percentile)
         top_proba_distance = np.percentile(proba_distances, 100*(1-self.percentile))
         return {'mean' : mean_distance, 'prob' : (proba_mean_distance, (bottom_proba_distance, top_proba_distance))} 
+    
+
+class LastValueInterval(LastValue):
+    '''
+    mean := abs(mean_last_value - true_value)
+    proba := 
+    '''
+    def __init__(self, attribute_name: str, percentile: float, value_factor: float = 1.0,
+                 outlier_removal: float = 0.0):
+        super().__init__(attribute_name, outlier_removal)
+        self.percentile = percentile
+        self.value_factor = value_factor
+        self.outlier_removal = outlier_removal
+
+    def unwrap(self, x):
+        if isinstance(x, (np.ndarray, list, tuple)) and len(x) == 1:
+            return x[0]
+        elif isinstance(x, np.ndarray) and x.shape == ():  # scalar array
+            return x.item()
+        return x
+
+    def evaluate(self, prefix: list, suffix: list, mean_prediction: list, predicted_suffixes: list[list]):
+        true_value, mean_last_value, proba_last_values = super().evaluate(prefix, suffix, mean_prediction, predicted_suffixes)
+
+        # Unwrap values
+        true_value = self.unwrap(true_value)
+        proba_last_values = [self.unwrap(p) for p in proba_last_values]
+
+        if self.outlier_removal:
+            proba_last_values = self.remove_outliers_log_mad(proba_last_values)
+
+        bottom_proba = np.percentile(proba_last_values, 50 - 100 * self.percentile/2)
+        top_proba = np.percentile(proba_last_values, 50 + 100 * self.percentile/2)
+        in_interval = (true_value >= bottom_proba) and  (true_value <= top_proba)
+
+        return {'mean': 0, 'prob': (in_interval, (0, 0))}
+    
+
+class SumValuesInterval(SumValues):
+    '''
+
+    '''
+    def __init__(self, attribute_name : str, percentile : float, value_factor : float = 1.0,
+                 outlier_removal : float = 0.0):
+        super().__init__(attribute_name, outlier_removal)
+        self.percentile = percentile
+        self.value_factor = value_factor
+        self.outlier_removal = outlier_removal
+        
+    def unwrap(self, x):
+        if isinstance(x, (np.ndarray, list, tuple)) and len(x) == 1:
+            return x[0]
+        elif isinstance(x, np.ndarray) and x.shape == ():  # scalar array
+            return x.item()
+        return x
+
+    def evaluate(self, prefix : list, suffix : list, mean_prediction : list, predicted_suffixes : list[list]):
+        true_sum, mean_sum, proba_sums = super().evaluate(prefix, suffix, mean_prediction, predicted_suffixes)
+        
+        # Unwrap values
+        true_sum = self.unwrap(true_sum)
+        mean_sum = self.unwrap(mean_sum)
+        proba_sums = [self.unwrap(p) for p in proba_sums]
+        
+        if self.outlier_removal:
+            proba_sums = self.remove_outliers_mad(proba_sums)
+        
+        bottom_proba = np.percentile(proba_sums, 50 - 100 * self.percentile/2)
+        top_proba = np.percentile(proba_sums, 50 + 100 * self.percentile/2)
+        in_interval = (true_sum >= bottom_proba) and  (true_sum <= top_proba)
+
+        return {'mean' : 0, 'prob' : (in_interval, (0, 0))} 
+    
+
+class SuffixCountInterval(SuffixCount):
+    def __init__(self,
+                 percentile : float,
+                 outlier_removal : float = 0.0):
+        super().__init__()
+        self.percentile = percentile
+        self.outlier_removal = outlier_removal
+
+    def evaluate(self, prefix : list, suffix : list, mean_prediction : list, predicted_suffixes : list[list]):
+        len_true_value, len_mean_value, len_proba_values = super().evaluate(prefix, suffix, mean_prediction, predicted_suffixes)
+
+        bottom_proba = np.percentile(len_proba_values, 50 - 100 * self.percentile/2)
+        top_proba = np.percentile(len_proba_values, 50 + 100 * self.percentile/2)
+        in_interval = (len_true_value >= bottom_proba) and  (len_true_value <= top_proba)
+
+        return {'mean' : 0, 'prob' : (in_interval, (0, 0))}
+    
+
+class EventLabelCountInterval(EvaluationMetric):
+    def __init__(self,
+                 attribute_name : str,
+                 event_label_list : list[str],
+                 percentile : float,
+                 outlier_removal : float = 0.0):
+        super().__init__(attribute_name)
+        self.event_label_list = event_label_list
+        self.percentile = percentile
+        self.outlier_removal = outlier_removal
+
+    def evaluate(self, prefix : list, suffix : list, mean_prediction : list, predicted_suffixes : list[list]):
+        res = dict()
+        for event_label in self.event_label_list:
+            event_label_true_count = [e[self.attribute_name] for e in suffix].count(event_label)
+            event_label_mean_count = [e[self.attribute_name] for e in mean_prediction].count(event_label)
+            event_label_counts = [[e[self.attribute_name] for e in proba_suffix].count(event_label) for proba_suffix in predicted_suffixes]
+            bottom_proba = np.percentile(event_label_counts, 50 - 100 * self.percentile/2)
+            top_proba = np.percentile(event_label_counts, 50 + 100 * self.percentile/2)
+            in_interval = (event_label_true_count >= bottom_proba) and (event_label_true_count <= top_proba)
+            res[event_label] = in_interval
+
+        return res
+
+
+class EventLabelCount(EvaluationMetric):
+    def __init__(self,
+                 attribute_name : str,
+                 event_label : str,
+                 outlier_removal : float = 0.0):
+        super().__init__(attribute_name)
+        self.event_label = event_label
+        self.outlier_removal = outlier_removal
+
+    def evaluate(self, prefix : list, suffix : list, mean_prediction : list, predicted_suffixes : list[list]):
+        event_label_true_count = [e[self.attribute_name] for e in suffix].count(self.event_label)
+        event_label_mean_count = [e[self.attribute_name] for e in mean_prediction].count(self.event_label)
+        event_label_counts = Counter([[e[self.attribute_name] for e in proba_suffix].count(self.event_label) for proba_suffix in predicted_suffixes])
+
+        return {'true' : event_label_true_count, 'mean' : event_label_mean_count,
+                'prob' : event_label_counts}
