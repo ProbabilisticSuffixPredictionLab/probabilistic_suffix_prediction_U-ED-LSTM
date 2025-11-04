@@ -258,9 +258,11 @@ class DropoutUncertaintyEncoderDecoderLSTM(nn.Module):
     
         # Training
         if training:
-            # Decide for the whole batch to use teacher forcing or not.
-            rand_tf_value_per_batch = torch.rand(1).item()          
+            # Timestep iterations
             for t in range(self.seq_len_pred):
+                
+                rand_tf_value_per_batch = torch.rand(1).item()
+                
                 # SOS Event
                 if t == 0:
                     # preds: list containing two dicts one for all means (cat, num), one for all vars (cat, num)
@@ -268,26 +270,20 @@ class DropoutUncertaintyEncoderDecoderLSTM(nn.Module):
                     pred_means, pred_vars = preds
                 # Next Event
                 else:
-                    # Take predicted variable as input event: If teacher forcing value is smaller than random. teacher_forcing: 0.0 use always predicted.
-                    if teacher_forcing_ratio < rand_tf_value_per_batch:
-                        # Prepare last event predictions to next event for prediction
-                        last_pred_event = self.__transform_pred_into_next_event(pred_means=pred_means, pred_index=t, suffix=suffixes)
-                        
-                        # Call decoder with encoder hidden and previous event ofdecoder
-                        preds, (h, c), _ = self.decoder(input=last_pred_event, hx=(h, c), z=z, pred=True)
-                        pred_means, pred_vars = preds
-                    
-                    # Take target as next event:
-                    else:
-                        # Get previous target event at position t-1 of tensor as last event
-                        cat_suffixes, num_suffixes = suffixes
-                        
-                        # Take target-1 to predict next event                        
-                        cat_t_suffix_event = [cat_tens[:, t-1:t] for cat_tens in cat_suffixes]
-                        num_t_suffix_event = [num_tens[:, t-1:t] for num_tens in num_suffixes]
+                    # Random vale for teacher forcing for each timestep: If smaller use target else predicted
+                    # Decide per timestep whether to use teacher forcing
+                    if torch.rand(1).item() < teacher_forcing_ratio:
+                        # Use ground-truth previous event
+                        cat_t_suffix_event = [cat_tens[:, t-1:t] for cat_tens in suffixes[0]]
+                        num_t_suffix_event = [num_tens[:, t-1:t] for num_tens in suffixes[1]]
                         t_suffix_event = [cat_t_suffix_event, num_t_suffix_event]
                         
                         preds, (h, c), _ = self.decoder(input=t_suffix_event, hx=(h, c), z=z, pred=False)
+                        pred_means, pred_vars = preds
+                    else:
+                        # Use model prediction
+                        last_pred_event = self.__transform_pred_into_next_event(pred_means=pred_means, pred_index=t, suffix=suffixes)
+                        preds, (h, c), _ = self.decoder(input=last_pred_event, hx=(h, c), z=z, pred=True)
                         pred_means, pred_vars = preds
 
                 cat_pred_means, num_pred_means = pred_means

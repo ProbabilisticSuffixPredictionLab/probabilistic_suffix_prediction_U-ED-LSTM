@@ -120,19 +120,24 @@ class DropoutUncertaintyLSTMCell(nn.Module):
 
     def regularizer(self):
         """
-        Applies weight, bias and dropout regularization
-        
-        OUTPUTS:
-        - weight_sum: Weight regularization term
-        - bias_sum: Bias regularization term
+        L2 regularization of weights and biases scaled for dropout
         """
-        p = torch.tensor(self.p_logit)
-        
-        # L2 regularization of the weight, scaled by 1-p for dropout
-        weight_sum = torch.tensor([torch.sum(params**2) for name, params in self.named_parameters() if name.endswith("weight")]).sum() / (1.-p)
-        # L2 regularization of the bias
-        bias_sum = torch.tensor([torch.sum(params**2) for name, params in self.named_parameters() if name.endswith("bias")]).sum()
-        
+        # Compute dropout probability
+        if isinstance(self.p_logit, float):
+            p = self.p_logit
+        else:
+            p = torch.sigmoid(self.p_logit)
+
+        # Weight L2 sum (keeps autograd)
+        weight_sum = sum(torch.sum(params ** 2) 
+                        for name, params in self.named_parameters() 
+                        if name.endswith("weight")) / (1. - p)
+
+        # Bias L2 sum
+        bias_sum = sum(torch.sum(params ** 2) 
+                    for name, params in self.named_parameters() 
+                    if name.endswith("bias"))
+
         return weight_sum, bias_sum
 
     def forward(self,
