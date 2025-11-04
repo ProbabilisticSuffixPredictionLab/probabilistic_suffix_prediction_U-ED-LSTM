@@ -259,19 +259,16 @@ class DropoutUncertaintyEncoderDecoderLSTM(nn.Module):
         # Training
         if training:
             # Timestep iterations
-            for t in range(self.seq_len_pred):
-                
-                rand_tf_value_per_batch = torch.rand(1).item()
-                
+            for t in range(self.seq_len_pred):                
                 # SOS Event
                 if t == 0:
                     # preds: list containing two dicts one for all means (cat, num), one for all vars (cat, num)
                     preds, (h, c), z = self.decoder(input=sos_event, hx=(h_enc, c_enc), z=None, pred=False)
                     pred_means, pred_vars = preds
                 # Next Event
+                # Decide per timestep whether to use teacher forcing
                 else:
                     # Random vale for teacher forcing for each timestep: If smaller use target else predicted
-                    # Decide per timestep whether to use teacher forcing
                     if torch.rand(1).item() < teacher_forcing_ratio:
                         # Use ground-truth previous event
                         cat_t_suffix_event = [cat_tens[:, t-1:t] for cat_tens in suffixes[0]]

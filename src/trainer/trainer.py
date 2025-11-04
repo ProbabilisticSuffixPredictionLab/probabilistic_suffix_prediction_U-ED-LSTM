@@ -8,6 +8,7 @@ Uses gradient normalization (GradNorm) technique to balance task losses dynamica
 import torch
 from torch.utils.data import DataLoader
 from tqdm.notebook import tqdm
+import numpy as np
 
 class Trainer:
     def __init__(self,
@@ -86,8 +87,11 @@ class Trainer:
         print("Mini baches: ", self.mini_batches)
         self.shuffle = optimize_values["shuffle"]
         print("Shuffle batched dataset: ", self.shuffle)
+        
+        # Teacher forcing
         self.teacher_forcing_ratio = optimize_values["teacher_forcing_ratio"]
         print("Teacher forcing ratio: ", self.teacher_forcing_ratio)
+        self.teacher_forcing_init = float(self.teacher_forcing_ratio)  # e.g. 1.0
         
         # Events in sufffix: Dependent on data set
         self.suffix_data_split_value = suffix_data_split_value
@@ -116,7 +120,9 @@ class Trainer:
                 print("Initial GradNorm loss weights: ",self.gn_weights)
                 self.l0 = None
                 print("Initial loss values: ", self.l0)
-                self.gn_optimizer = torch.optim.Adam(params=[self.gn_weights], lr=self.gn_learning_rate)
+                
+                # Use same optimizer as for the model optimization
+                self.gn_optimizer = torch.optim.AdamW(params=[self.gn_weights], lr=self.gn_learning_rate)
                 print("GradNorm optimizer: ", self.gn_optimizer)
     
     def train_model(self):
@@ -142,6 +148,10 @@ class Trainer:
         # Teacher forcing reducing index:
         k = 1
         
+        # choose sigmoid teacher forcing hyperparams (tweak to taste)
+        midpoint = 0.5 * self.epochs          # default: halfway through training
+        scale = 0.1 * self.epochs             # default: transition width (10% of total epochs)
+        
         # Trainings/ Epoch Loop
         for epoch in tqdm(range(self.epochs)):
             
@@ -155,23 +165,29 @@ class Trainer:
             num_batches_per_epoch = 0.0
             
             # Reduce Teacher forcing ratio dynamically:
-            if epoch >= ((self.epochs * k) / 5):
-                self.teacher_forcing_ratio = self.teacher_forcing_ratio - (self.teacher_forcing_ratio / 25)
-                if self.teacher_forcing_ratio < 0:
-                    self.teacher_forcing_ratio = 0.0
-                k +=1
+            #if epoch >= ((self.epochs * k) / 5):
+            #    self.teacher_forcing_ratio = self.teacher_forcing_ratio - (self.teacher_forcing_ratio / 25)
+            #    if self.teacher_forcing_ratio < 0:
+            #        self.teacher_forcing_ratio = 0.0
+            #    k +=1
+
+            # sigmoid decreasing
+            # self.teacher_forcing_ratio = 1 / (1 + np.exp((self.epochs - 30) / 5))
 
             # Bacth Loop
             for i, train_data in enumerate(train_dataloader): 
                 cats, nums, _ = train_data
                             
+                # Automize this            
+                
+                            
                 # dim: list(list(Tensors categorical: dim: batch size x window size-4), list(Tensors numerical: dim: batch size x window size-4))
-                prefixes_cat = [cat[:, :-4].to(self.device) for cat in cats]
-                prefixes_num = [num[:, :-4].to(self.device) for num in nums]
+                prefixes_cat = [cat[:, :-self.suffix_data_split_value].to(self.device) for cat in cats]
+                prefixes_num = [num[:, :-self.suffix_data_split_value].to(self.device) for num in nums]
                 prefixes = [prefixes_cat, prefixes_num]
                 
-                suffixes_cat = [cat[:, -4:].to(self.device) for cat in cats]
-                suffixes_num = [num[:, -4:].to(self.device) for num in nums]
+                suffixes_cat = [cat[:, -self.suffix_data_split_value:].to(self.device) for cat in cats]
+                suffixes_num = [num[:, -self.suffix_data_split_value:].to(self.device) for num in nums]
                 suffixes = [suffixes_cat, suffixes_num]
                 
                 # GradNorm Training:
@@ -584,12 +600,12 @@ class Trainer:
                 cats, nums, _ = val_data    
                 
                 # dim: list(list(Tensors categorical: dim: batch size x window size-4), list(Tensors numerical: dim: batch size x window size-4))
-                prefixes_cat = [cat[:, :-4].to(self.device) for cat in cats]
-                prefixes_num = [num[:, :-4].to(self.device) for num in nums]
+                prefixes_cat = [cat[:, :-self.suffix_data_split_value].to(self.device) for cat in cats]
+                prefixes_num = [num[:, :-self.suffix_data_split_value].to(self.device) for num in nums]
                 prefixes = [prefixes_cat, prefixes_num]
                     
-                suffixes_cat = [cat[:, -4:].to(self.device) for cat in cats]
-                suffixes_num = [num[:, -4:].to(self.device) for num in nums]
+                suffixes_cat = [cat[:, -self.suffix_data_split_value:].to(self.device) for cat in cats]
+                suffixes_num = [num[:, -self.suffix_data_split_value:].to(self.device) for num in nums]
                 suffixes = [suffixes_cat, suffixes_num]
 
                 # Model predictions:
