@@ -147,7 +147,7 @@ class Trainer:
         
         # Teacher forcing reducing index:
         k = 1
-        
+
         # choose sigmoid teacher forcing hyperparams (tweak to taste)
         midpoint = 0.5 * self.epochs          # default: halfway through training
         scale = 0.1 * self.epochs             # default: transition width (10% of total epochs)
@@ -165,14 +165,15 @@ class Trainer:
             num_batches_per_epoch = 0.0
             
             # Reduce Teacher forcing ratio dynamically:
-            #if epoch >= ((self.epochs * k) / 5):
-            #    self.teacher_forcing_ratio = self.teacher_forcing_ratio - (self.teacher_forcing_ratio / 25)
-            #    if self.teacher_forcing_ratio < 0:
-            #        self.teacher_forcing_ratio = 0.0
-            #    k +=1
+            if epoch >= ((self.epochs * k) / 5):
+                self.teacher_forcing_ratio = self.teacher_forcing_ratio - (self.teacher_forcing_ratio / 25)
+                if self.teacher_forcing_ratio < 0:
+                    self.teacher_forcing_ratio = 0.0
+                k +=1
 
-            # sigmoid decreasing
-            # self.teacher_forcing_ratio = 1 / (1 + np.exp((self.epochs - 30) / 5))
+            # Sigmoid decreasing schedule
+            # Starts near 1, smoothly decays to near 0
+            # self.teacher_forcing_ratio = 1 / (1 + np.exp((epoch - midpoint) / scale))
 
             # Bacth Loop
             for i, train_data in enumerate(train_dataloader): 
