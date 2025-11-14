@@ -283,7 +283,6 @@ class TensorEncoderDecoder:
             column_data = continuous_imputer.fit_transform(column_data)  # still (n,1)
             continuous_encoder.fit(column_data)  # StandardScaler or custom transformer expects 2D
 
-
     def encode_df(self, df) -> tuple[tuple[torch.Tensor, torch.Tensor, tuple],
                                      tuple[list[tuple[str, int, dict[str : int]]]]]:
         categorical_tensors = []

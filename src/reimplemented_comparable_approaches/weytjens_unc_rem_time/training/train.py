@@ -81,8 +81,8 @@ class Training:
             mask = (row != self.eos_id)  # True where not EOS
             
             # no EOS: skip sample entirely
-            if mask.all():
-                continue
+            # if mask.all():
+            #    continue
 
             kept_cat = row[mask]         # [T_b]
             kept_num = num[b][mask]      # [T_b]
@@ -121,14 +121,17 @@ class Training:
         val_losses_unc = []
 
         # Validation dataloader
-        val_dataloader = DataLoader(dataset=self.data_val, batch_size=self.mini_batches, shuffle=self.shuffle, num_workers=4, pin_memory=True)
-
-        for epoch in tqdm(range(self.epochs)):
+        # val_dataloader = DataLoader(dataset=self.data_val, batch_size=self.mini_batches, shuffle=self.shuffle, num_workers=4, pin_memory=True)
+        val_dataloader = DataLoader(dataset=self.data_val, batch_size=self.mini_batches, shuffle=self.shuffle, pin_memory=True)
+        
+        for epoch in range(self.epochs):
+        # for epoch in tqdm(range(self.epochs)):
             self.model.train()
 
             # Train dataloader
-            train_dataloader = DataLoader(dataset=self.data_train, batch_size=self.mini_batches, shuffle=self.shuffle, num_workers=4, pin_memory=True)
-            
+            # train_dataloader = DataLoader(dataset=self.data_train, batch_size=self.mini_batches, shuffle=self.shuffle, num_workers=4, pin_memory=True)
+            train_dataloader = DataLoader(dataset=self.data_train, batch_size=self.mini_batches, shuffle=self.shuffle, pin_memory=True)
+
             total_unc = 0
             num_batches = 0
 

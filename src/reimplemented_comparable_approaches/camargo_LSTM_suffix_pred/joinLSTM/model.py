@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
 
 class FullShared_Join_LSTM(nn.Module):
     def __init__(self,

@@ -47,7 +47,6 @@ class DropoutUncertaintyLSTMEncoder(nn.Module):
         OUTPUTS:
         - total_weight_reg: L2 weight regularization term
         - total_bias_reg: L2 bias regularization term
-        - total_dropout_reg: L2 dropout regularization term
         """
         total_weight_reg, total_bias_reg = self.first_layer.regularizer()
         

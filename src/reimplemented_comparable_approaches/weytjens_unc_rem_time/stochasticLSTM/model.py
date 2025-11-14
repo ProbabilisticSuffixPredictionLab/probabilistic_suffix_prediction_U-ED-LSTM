@@ -29,7 +29,7 @@ class StochasticLSTMWeytjens(nn.Module):
                  p_fix: Optional[float],
                  device: str = 'cpu'):
         """
-        ARGUMENTS:
+        ARGS:
         data_set_categories: list of categorical and numerical feature metadata
         model_feat: list of features used in the model
         hidden_size: number of nodes in LSTM layers
@@ -141,8 +141,8 @@ class StochasticLSTMWeytjens(nn.Module):
         
     def forward(self, input):
         """
-        ARGUMENTS:
-        input: list of lists with tensors for (categorical, numerical event attributes)
+        INPUTS:
+        list of lists with tensors for (categorical, numerical event attributes)
         
         OUTPUTS:
         mean: point estimates, tensor (batch size x 1)
