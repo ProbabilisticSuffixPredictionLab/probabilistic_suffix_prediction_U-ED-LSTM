@@ -166,7 +166,8 @@ class Trainer:
             
             # Reduce Teacher forcing ratio dynamically:
             if epoch >= ((self.epochs * k) / 5):
-                self.teacher_forcing_ratio = self.teacher_forcing_ratio - (self.teacher_forcing_ratio / 25)
+                # adopt to reduce teacher forcing more drastical:
+                self.teacher_forcing_ratio = self.teacher_forcing_ratio - (self.teacher_forcing_ratio / 10)
                 if self.teacher_forcing_ratio < 0:
                     self.teacher_forcing_ratio = 0.0
                 k +=1

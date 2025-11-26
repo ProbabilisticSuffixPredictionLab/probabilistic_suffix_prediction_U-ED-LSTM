@@ -133,7 +133,7 @@ class DropoutUncertaintyEncoderDecoderLSTM(nn.Module):
         
         # List containing two dicts: One for categorical, one for numerical
         self.output_feature_indeces = self.__get_list_dict_feature_index(data_set_categories=data_set_categories, model_type_feats=dec_feat)
-        print("Output feature list of dicts (featue name, tensor index in dataset) of decoder: ", self.output_feature_indeces)
+        # print("Output feature list of dicts (featue name, tensor index in dataset) of decoder: ", self.output_feature_indeces)
         
     def __get_list_labels_input(self,
                                 data_set_categories,
