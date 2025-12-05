@@ -206,5 +206,8 @@ pyrightconfig.json
 .history
 .ionide
 
+# .pkl in reimplemented approaches
+src/reimplemented_comparable_approaches/**/notebooks/evaluation/**/*.pkl
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,python,jupyternotebooks
 
